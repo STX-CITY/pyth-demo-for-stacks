@@ -10,13 +10,13 @@ import {
 import { Buffer } from 'buffer';
 
 export const network = 'mainnet';
-export const contractAddress = 'SP3R4F6C1J3JQWWCVZ3S7FRRYPMYG6ZW6RZK31FXY';
-export const contractName = 'pyth-oracle-v3';
+export const contractAddress = 'SP1CGXWEAMG6P6FT04W66NVGJ7PQWMDAC19R7PJ0Y';
+export const contractName = 'pyth-oracle-v4';
 
 // Trait implementors on mainnet
-const PYN_STORAGE = 'pyth-storage-v3';
-const PYN_DECODER = 'pyth-pnau-decoder-v2';
-const WORMHOLE_CORE = 'wormhole-core-v3';
+const PYN_STORAGE = 'pyth-storage-v4';
+const PYN_DECODER = 'pyth-pnau-decoder-v3';
+const WORMHOLE_CORE = 'wormhole-core-v4';
 
 function hexToBuff(hexWith0x: string) {
   const h = hexWith0x.startsWith('0x') ? hexWith0x.slice(2) : hexWith0x;

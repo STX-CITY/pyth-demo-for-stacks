@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import {
+  contractAddress,
+  contractName,
   openDecode,
   openGetPrice,
   openReadPrice,
@@ -246,7 +248,7 @@ export default function Home() {
           </p>
         </div>
         <p className="text-sm text-gray-500">
-          Contract: SP3R4F6C1J3JQWWCVZ3S7FRRYPMYG6ZW6RZK31FXY.pyth-oracle-v3
+          Contract: {contractAddress}.{contractName}
         </p>
 
         <div className="flex items-center gap-3">
