@@ -10,6 +10,7 @@ import {
 import { HermesClient } from '@pythnetwork/hermes-client';
 import { connectWallet, resolveStxAddress } from '../lib/wallet';
 import { PRICE_FEEDS } from '../lib/feeds';
+import { getTransactionResult, formatTimestamp } from '../lib/hiro-api';
 
 const DEFAULT_FEED_ID = PRICE_FEEDS.BTC_USD;
 
@@ -19,6 +20,9 @@ export default function Home() {
   const [status, setStatus] = useState<string>('');
   const [connected, setConnected] = useState<boolean>(false);
   const [principal, setPrincipal] = useState<string>('');
+  const [txResults, setTxResults] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [currentTxId, setCurrentTxId] = useState<string | null>(null);
 
   const hermes = useMemo(() => new HermesClient('https://hermes.pyth.network'), []);
 
@@ -92,6 +96,32 @@ export default function Home() {
     }
   }, [feedId, hermes]);
 
+  const handleTxResult = useCallback(async (txResult: any, functionName: string) => {
+    if (txResult?.txid) {
+      setCurrentTxId(txResult.txid);
+      setStatus(`Transaction submitted: ${txResult.txid}`);
+      setIsLoading(true);
+      setTxResults(null);
+
+      // Wait a bit for transaction to be indexed
+      setTimeout(async () => {
+        try {
+          const result = await getTransactionResult(txResult.txid, 'mainnet');
+          setTxResults(result);
+          if (result.success) {
+            setStatus(`Transaction successful for ${functionName}`);
+          } else {
+            setStatus(`Transaction failed: ${result.error || result.status}`);
+          }
+        } catch (error: any) {
+          setStatus(`Failed to fetch transaction details: ${error.message}`);
+        } finally {
+          setIsLoading(false);
+        }
+      }, 3000); // Wait 3 seconds for transaction to be indexed
+    }
+  }, []);
+
   const handleDecode = useCallback(async () => {
     if (!vaaHex) return setStatus('VAA is empty');
     // Ensure wallet connection
@@ -108,8 +138,9 @@ export default function Home() {
       }
     }
     setStatus('Opening wallet for decode-price-feeds...');
-    await openDecode(vaaHex);
-  }, [vaaHex, connected]);
+    const txResult = await openDecode(vaaHex);
+    await handleTxResult(txResult, 'decode-price-feeds');
+  }, [vaaHex, connected, handleTxResult]);
 
   const handleVerify = useCallback(async () => {
     if (!vaaHex) return setStatus('VAA is empty');
@@ -126,8 +157,9 @@ export default function Home() {
       }
     }
     setStatus('Opening wallet for verify-and-update-price-feeds...');
-    await openVerifyAndUpdate(vaaHex);
-  }, [vaaHex, connected]);
+    const txResult = await openVerifyAndUpdate(vaaHex);
+    await handleTxResult(txResult, 'verify-and-update-price-feeds');
+  }, [vaaHex, connected, handleTxResult]);
 
   const handleRead = useCallback(async () => {
     if (!connected) {
@@ -143,8 +175,9 @@ export default function Home() {
       }
     }
     setStatus('Opening wallet for read-price-feed...');
-    await openReadPrice(feedId);
-  }, [feedId, connected]);
+    const txResult = await openReadPrice(feedId);
+    await handleTxResult(txResult, 'read-price-feed');
+  }, [feedId, connected, handleTxResult]);
 
   const handleGet = useCallback(async () => {
     if (!connected) {
@@ -160,8 +193,9 @@ export default function Home() {
       }
     }
     setStatus('Opening wallet for get-price...');
-    await openGetPrice(feedId);
-  }, [feedId, connected]);
+    const txResult = await openGetPrice(feedId);
+    await handleTxResult(txResult, 'get-price');
+  }, [feedId, connected, handleTxResult]);
 
   return (
     <div className="min-h-screen p-6 sm:p-10 font-sans">
@@ -251,8 +285,106 @@ export default function Home() {
 
         <div>
           <label className="block text-sm font-medium">Status</label>
-          <pre className="w-full min-h-12 border rounded p-2 text-xs whitespace-pre-wrap">{status}</pre>
+          <div className="w-full min-h-12 border rounded p-2 text-xs space-y-2">
+            <pre className="whitespace-pre-wrap">{status}</pre>
+            {currentTxId && (
+              <div className="pt-2 border-t">
+                <span className="font-medium">Transaction ID: </span>
+                <a
+                  href={`https://explorer.hiro.so/txid/${currentTxId}?chain=mainnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline break-all"
+                >
+                  {currentTxId}
+                </a>
+              </div>
+            )}
+          </div>
         </div>
+
+        {isLoading && (
+          <div className="border rounded p-4 bg-blue-50">
+            <p className="text-sm">Loading transaction details...</p>
+          </div>
+        )}
+
+        {txResults && !isLoading && (
+          <div className="border rounded p-4 space-y-3">
+            <h3 className="font-semibold text-sm">Transaction Result</h3>
+
+            {txResults.success && txResults.priceData && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium">Price:</span>
+                    <span className="ml-2 text-green-600 font-bold">
+                      {txResults.formattedPrice}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Raw Price:</span>
+                    <span className="ml-2">{txResults.priceData.price}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">EMA Price:</span>
+                    <span className="ml-2">{txResults.priceData.emaPrice}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Confidence:</span>
+                    <span className="ml-2">{txResults.priceData.conf}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Exponent:</span>
+                    <span className="ml-2">{txResults.priceData.expo}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Publish Time:</span>
+                    <span className="ml-2">{formatTimestamp(txResults.priceData.publishTime)}</span>
+                  </div>
+                </div>
+                {txResults.priceData.priceIdentifier && (
+                  <div className="text-sm">
+                    <span className="font-medium">Price ID:</span>
+                    <span className="ml-2 font-mono text-xs break-all">
+                      {txResults.priceData.priceIdentifier}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {txResults.success && txResults.raw && (
+              <div className="space-y-2">
+                <div className="text-sm">
+                  <span className="font-medium">Raw Result:</span>
+                  <pre className="mt-1 p-2 bg-gray-50 rounded text-xs overflow-x-auto">
+                    {txResults.result}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {txResults.events && txResults.events.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Events:</div>
+                <div className="text-xs bg-gray-50 p-2 rounded">
+                  {txResults.events.map((event: any, idx: number) => (
+                    <div key={idx} className="mb-1">
+                      Event {idx + 1}: {event.event_type}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!txResults.success && (
+              <div className="text-red-600 text-sm">
+                Error: {txResults.error || 'Transaction failed'}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
