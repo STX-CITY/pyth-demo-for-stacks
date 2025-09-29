@@ -8,7 +8,7 @@ import {
   openVerifyAndUpdate,
 } from '../lib/stacks';
 import { HermesClient } from '@pythnetwork/hermes-client';
-import { connectWallet, resolveStxAddress, disconnectWallet } from '../lib/wallet';
+import { connectWallet, resolveStxAddress, disconnectWallet, isWalletConnected } from '../lib/wallet';
 import { PRICE_FEEDS } from '../lib/feeds';
 import { getTransactionResult, formatTimestamp } from '../lib/hiro-api';
 
@@ -29,10 +29,13 @@ export default function Home() {
   // Detect already-connected wallet on mount
   useEffect(() => {
     (async () => {
-      const addr = await resolveStxAddress();
-      if (addr) {
-        setPrincipal(addr);
-        setConnected(true);
+      const connected = await isWalletConnected();
+      if (connected) {
+        const addr = await resolveStxAddress();
+        if (addr) {
+          setPrincipal(addr);
+          setConnected(true);
+        }
       }
     })();
   }, []);
@@ -128,10 +131,15 @@ export default function Home() {
     if (!connected) {
       try {
         setStatus('Connecting wallet...');
-        const resp: any = await connectWallet();
-        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
-        if (addr) setPrincipal(addr);
-        setConnected(true);
+        await connectWallet();
+        const addr = await resolveStxAddress();
+        if (addr) {
+          setPrincipal(addr);
+          setConnected(true);
+        } else {
+          setStatus('Failed to get wallet address');
+          return;
+        }
       } catch (e: any) {
         setStatus('Wallet connection canceled or failed');
         return;
@@ -147,10 +155,15 @@ export default function Home() {
     if (!connected) {
       try {
         setStatus('Connecting wallet...');
-        const resp: any = await connectWallet();
-        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
-        if (addr) setPrincipal(addr);
-        setConnected(true);
+        await connectWallet();
+        const addr = await resolveStxAddress();
+        if (addr) {
+          setPrincipal(addr);
+          setConnected(true);
+        } else {
+          setStatus('Failed to get wallet address');
+          return;
+        }
       } catch (e: any) {
         setStatus('Wallet connection canceled or failed');
         return;
@@ -165,10 +178,15 @@ export default function Home() {
     if (!connected) {
       try {
         setStatus('Connecting wallet...');
-        const resp: any = await connectWallet();
-        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
-        if (addr) setPrincipal(addr);
-        setConnected(true);
+        await connectWallet();
+        const addr = await resolveStxAddress();
+        if (addr) {
+          setPrincipal(addr);
+          setConnected(true);
+        } else {
+          setStatus('Failed to get wallet address');
+          return;
+        }
       } catch (e: any) {
         setStatus('Wallet connection canceled or failed');
         return;
@@ -183,10 +201,15 @@ export default function Home() {
     if (!connected) {
       try {
         setStatus('Connecting wallet...');
-        const resp: any = await connectWallet();
-        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
-        if (addr) setPrincipal(addr);
-        setConnected(true);
+        await connectWallet();
+        const addr = await resolveStxAddress();
+        if (addr) {
+          setPrincipal(addr);
+          setConnected(true);
+        } else {
+          setStatus('Failed to get wallet address');
+          return;
+        }
       } catch (e: any) {
         setStatus('Wallet connection canceled or failed');
         return;
@@ -224,11 +247,15 @@ export default function Home() {
               onClick={async () => {
                 try {
                   setStatus('Connecting wallet...');
-                  const resp: any = await connectWallet();
-                  const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
-                  if (addr) setPrincipal(addr);
-                  setConnected(true);
-                  setStatus('Wallet connected');
+                  await connectWallet();
+                  const addr = await resolveStxAddress();
+                  if (addr) {
+                    setPrincipal(addr);
+                    setConnected(true);
+                    setStatus('Wallet connected');
+                  } else {
+                    setStatus('Failed to get wallet address');
+                  }
                 } catch (e) {
                   setStatus('Wallet connection canceled or failed');
                 }
