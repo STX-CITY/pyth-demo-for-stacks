@@ -49,3 +49,26 @@ export async function resolveStxAddress(): Promise<string | null> {
 
   return null;
 }
+
+export async function disconnectWallet(): Promise<void> {
+  const mod: any = await import('@stacks/connect');
+
+  // Try the disconnect method if available
+  if (typeof mod.disconnect === 'function') {
+    await mod.disconnect();
+    return;
+  }
+
+  // Clear local storage as fallback
+  if (typeof window !== 'undefined') {
+    // Clear Hiro wallet related storage
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes('blockstack') || key.includes('stacks') || key.includes('hiro'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  }
+}

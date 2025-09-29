@@ -8,7 +8,7 @@ import {
   openVerifyAndUpdate,
 } from '../lib/stacks';
 import { HermesClient } from '@pythnetwork/hermes-client';
-import { connectWallet, resolveStxAddress } from '../lib/wallet';
+import { connectWallet, resolveStxAddress, disconnectWallet } from '../lib/wallet';
 import { PRICE_FEEDS } from '../lib/feeds';
 import { getTransactionResult, formatTimestamp } from '../lib/hiro-api';
 
@@ -200,33 +200,66 @@ export default function Home() {
   return (
     <div className="min-h-screen p-6 sm:p-10 font-sans">
       <div className="max-w-3xl mx-auto space-y-6">
-        <h1 className="text-2xl font-semibold">Pyth Oracle V3 on Stacks — Demo</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Pyth Oracle V3 on Stacks — Demo</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Built by{' '}
+            <a
+              href="https://stx.city"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              stx.city
+            </a>
+          </p>
+        </div>
         <p className="text-sm text-gray-500">
           Contract: SP3R4F6C1J3JQWWCVZ3S7FRRYPMYG6ZW6RZK31FXY.pyth-oracle-v3
         </p>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={async () => {
-              try {
-                setStatus('Connecting wallet...');
-                const resp: any = await connectWallet();
-                const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
-                if (addr) setPrincipal(addr);
-                setConnected(true);
-                setStatus('Wallet connected');
-              } catch (e) {
-                setStatus('Wallet connection canceled or failed');
-              }
-            }}
-            className="px-3 py-2 rounded border text-sm"
-          >
-            {connected ? 'Wallet Connected' : 'Connect Wallet'}
-          </button>
-          {connected && (
-            <div className="text-xs text-gray-600 truncate">
-              <span className="font-medium">Address:</span> {principal}
-            </div>
+          {!connected ? (
+            <button
+              onClick={async () => {
+                try {
+                  setStatus('Connecting wallet...');
+                  const resp: any = await connectWallet();
+                  const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
+                  if (addr) setPrincipal(addr);
+                  setConnected(true);
+                  setStatus('Wallet connected');
+                } catch (e) {
+                  setStatus('Wallet connection canceled or failed');
+                }
+              }}
+              className="px-3 py-2 rounded border text-sm"
+            >
+              Connect Wallet
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={async () => {
+                  try {
+                    await disconnectWallet();
+                    setConnected(false);
+                    setPrincipal('');
+                    setCurrentTxId(null);
+                    setTxResults(null);
+                    setStatus('Wallet disconnected');
+                  } catch (e) {
+                    setStatus('Failed to disconnect wallet');
+                  }
+                }}
+                className="px-3 py-2 rounded border text-sm bg-red-50 hover:bg-red-100 text-red-700"
+              >
+                Disconnect Wallet
+              </button>
+              <div className="text-xs text-gray-600 truncate">
+                <span className="font-medium">Address:</span> {principal}
+              </div>
+            </>
           )}
         </div>
 
