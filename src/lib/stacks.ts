@@ -44,7 +44,7 @@ async function buildOneStxPostConditionHex(): Promise<PostCondition[]> {
 // Wallet-driven calls (recommended)
 export async function openDecode(vaaHex: string) {
   const { request } = await import('@stacks/connect');
-  const functionArgs: ClarityValue[] = [bufferCV(hexToBuff(vaaHex))];
+  const functionArgs: ClarityValue[] = [bufferCV(hexToBuff(vaaHex)), traitTuple()];
   return request('stx_callContract', {
     contract: `${contractAddress}.${contractName}`,
     functionName: 'decode-price-feeds',
