@@ -23,6 +23,7 @@ export default function Home() {
   const [txResults, setTxResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentTxId, setCurrentTxId] = useState<string | null>(null);
+  const [currentFeedName, setCurrentFeedName] = useState<string>('');
 
   const hermes = useMemo(() => new HermesClient('https://hermes.pyth.network'), []);
 
@@ -99,9 +100,10 @@ export default function Home() {
     }
   }, [feedId, hermes]);
 
-  const handleTxResult = useCallback(async (txResult: any, functionName: string) => {
+  const handleTxResult = useCallback(async (txResult: any, functionName: string, feedName?: string) => {
     if (txResult?.txid) {
       setCurrentTxId(txResult.txid);
+      setCurrentFeedName(feedName || '');
       setStatus(`Transaction submitted: ${txResult.txid}`);
       setIsLoading(true);
       setTxResults(null);
@@ -121,7 +123,7 @@ export default function Home() {
         } finally {
           setIsLoading(false);
         }
-      }, 3000); // Wait 3 seconds for transaction to be indexed
+      }, 10000); // Wait 10 seconds for transaction to be indexed
     }
   }, []);
 
@@ -192,9 +194,12 @@ export default function Home() {
         return;
       }
     }
+    const feedName = Object.keys(PRICE_FEEDS).find(
+      (key) => PRICE_FEEDS[key as keyof typeof PRICE_FEEDS] === feedId
+    );
     setStatus('Opening wallet for read-price-feed...');
     const txResult = await openReadPrice(feedId);
-    await handleTxResult(txResult, 'read-price-feed');
+    await handleTxResult(txResult, 'read-price-feed', feedName);
   }, [feedId, connected, handleTxResult]);
 
   const handleGet = useCallback(async () => {
@@ -215,9 +220,12 @@ export default function Home() {
         return;
       }
     }
+    const feedName = Object.keys(PRICE_FEEDS).find(
+      (key) => PRICE_FEEDS[key as keyof typeof PRICE_FEEDS] === feedId
+    );
     setStatus('Opening wallet for get-price...');
     const txResult = await openGetPrice(feedId);
-    await handleTxResult(txResult, 'get-price');
+    await handleTxResult(txResult, 'get-price', feedName);
   }, [feedId, connected, handleTxResult]);
 
   return (
@@ -291,26 +299,41 @@ export default function Home() {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium">Select Preset Feed</label>
+          <label className="block text-sm font-medium">Select Preset Feed or Enter Custom Feed ID</label>
           <select
             className="w-full border rounded px-3 py-2 text-sm"
             value={feedId}
             onChange={(e) => setFeedId(e.target.value)}
           >
-            <option value={PRICE_FEEDS.BTC_USD}>BTC / USD</option>
-            <option value={PRICE_FEEDS.STX_USD}>STX / USD</option>
-            <option value={PRICE_FEEDS.ETH_USD}>ETH / USD</option>
-            <option value={PRICE_FEEDS.USDC_USD}>USDC / USD</option>
+            {Object.entries(PRICE_FEEDS).map(([key, value]) => (
+              <option key={key} value={value}>
+                {key.replace(/_/g, ' / ')}
+              </option>
+            ))}
+            <option value="">Custom Feed ID</option>
           </select>
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium">Pyth Price Feed ID (hex)</label>
+          <label className="block text-sm font-medium">
+            Custom Pyth Price Feed ID (hex)
+            <span className="text-gray-500 font-normal ml-2">
+              Enter your own feed ID from{' '}
+              <a
+                href="https://insights.pyth.network/price-feeds"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Pyth Network
+              </a>
+            </span>
+          </label>
           <input
-            className="w-full border rounded px-3 py-2 text-sm"
+            className="w-full border rounded px-3 py-2 text-sm font-mono"
             value={feedId}
             onChange={(e) => setFeedId(e.target.value)}
-            placeholder="0x..."
+            placeholder="0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43"
           />
         </div>
 
@@ -371,7 +394,14 @@ export default function Home() {
 
         {txResults && !isLoading && (
           <div className="border rounded p-4 space-y-3">
-            <h3 className="font-semibold text-sm">Transaction Result</h3>
+            <h3 className="font-semibold text-sm">
+              Transaction Result
+              {currentFeedName && (
+                <span className="ml-2 text-blue-600">
+                  ({currentFeedName.split('_')[0]})
+                </span>
+              )}
+            </h3>
 
             {txResults.success && txResults.priceData && (
               <div className="space-y-2">
