@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   openDecode,
   openGetPrice,
@@ -8,16 +8,30 @@ import {
   openVerifyAndUpdate,
 } from '../lib/stacks';
 import { HermesClient } from '@pythnetwork/hermes-client';
+import { connectWallet, resolveStxAddress } from '../lib/wallet';
+import { PRICE_FEEDS } from '../lib/feeds';
 
-const DEFAULT_FEED_ID =
-  '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43';
+const DEFAULT_FEED_ID = PRICE_FEEDS.BTC_USD;
 
 export default function Home() {
   const [feedId, setFeedId] = useState<string>(DEFAULT_FEED_ID);
   const [vaaHex, setVaaHex] = useState<string>('');
   const [status, setStatus] = useState<string>('');
+  const [connected, setConnected] = useState<boolean>(false);
+  const [principal, setPrincipal] = useState<string>('');
 
   const hermes = useMemo(() => new HermesClient('https://hermes.pyth.network'), []);
+
+  // Detect already-connected wallet on mount
+  useEffect(() => {
+    (async () => {
+      const addr = await resolveStxAddress();
+      if (addr) {
+        setPrincipal(addr);
+        setConnected(true);
+      }
+    })();
+  }, []);
 
   function toHexFromBytes(bytes: Uint8Array): string {
     let hex = '0x';
@@ -80,25 +94,74 @@ export default function Home() {
 
   const handleDecode = useCallback(async () => {
     if (!vaaHex) return setStatus('VAA is empty');
+    // Ensure wallet connection
+    if (!connected) {
+      try {
+        setStatus('Connecting wallet...');
+        const resp: any = await connectWallet();
+        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
+        if (addr) setPrincipal(addr);
+        setConnected(true);
+      } catch (e: any) {
+        setStatus('Wallet connection canceled or failed');
+        return;
+      }
+    }
     setStatus('Opening wallet for decode-price-feeds...');
     await openDecode(vaaHex);
-  }, [vaaHex]);
+  }, [vaaHex, connected]);
 
   const handleVerify = useCallback(async () => {
     if (!vaaHex) return setStatus('VAA is empty');
+    if (!connected) {
+      try {
+        setStatus('Connecting wallet...');
+        const resp: any = await connectWallet();
+        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
+        if (addr) setPrincipal(addr);
+        setConnected(true);
+      } catch (e: any) {
+        setStatus('Wallet connection canceled or failed');
+        return;
+      }
+    }
     setStatus('Opening wallet for verify-and-update-price-feeds...');
     await openVerifyAndUpdate(vaaHex);
-  }, [vaaHex]);
+  }, [vaaHex, connected]);
 
   const handleRead = useCallback(async () => {
+    if (!connected) {
+      try {
+        setStatus('Connecting wallet...');
+        const resp: any = await connectWallet();
+        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
+        if (addr) setPrincipal(addr);
+        setConnected(true);
+      } catch (e: any) {
+        setStatus('Wallet connection canceled or failed');
+        return;
+      }
+    }
     setStatus('Opening wallet for read-price-feed...');
     await openReadPrice(feedId);
-  }, [feedId]);
+  }, [feedId, connected]);
 
   const handleGet = useCallback(async () => {
+    if (!connected) {
+      try {
+        setStatus('Connecting wallet...');
+        const resp: any = await connectWallet();
+        const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
+        if (addr) setPrincipal(addr);
+        setConnected(true);
+      } catch (e: any) {
+        setStatus('Wallet connection canceled or failed');
+        return;
+      }
+    }
     setStatus('Opening wallet for get-price...');
     await openGetPrice(feedId);
-  }, [feedId]);
+  }, [feedId, connected]);
 
   return (
     <div className="min-h-screen p-6 sm:p-10 font-sans">
@@ -107,6 +170,45 @@ export default function Home() {
         <p className="text-sm text-gray-500">
           Contract: SP3R4F6C1J3JQWWCVZ3S7FRRYPMYG6ZW6RZK31FXY.pyth-oracle-v3
         </p>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              try {
+                setStatus('Connecting wallet...');
+                const resp: any = await connectWallet();
+                const addr = (await resolveStxAddress()) || resp?.addresses?.mainnet || resp?.stxAddress || '';
+                if (addr) setPrincipal(addr);
+                setConnected(true);
+                setStatus('Wallet connected');
+              } catch (e) {
+                setStatus('Wallet connection canceled or failed');
+              }
+            }}
+            className="px-3 py-2 rounded border text-sm"
+          >
+            {connected ? 'Wallet Connected' : 'Connect Wallet'}
+          </button>
+          {connected && (
+            <div className="text-xs text-gray-600 truncate">
+              <span className="font-medium">Address:</span> {principal}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">Select Preset Feed</label>
+          <select
+            className="w-full border rounded px-3 py-2 text-sm"
+            value={feedId}
+            onChange={(e) => setFeedId(e.target.value)}
+          >
+            <option value={PRICE_FEEDS.BTC_USD}>BTC / USD</option>
+            <option value={PRICE_FEEDS.STX_USD}>STX / USD</option>
+            <option value={PRICE_FEEDS.ETH_USD}>ETH / USD</option>
+            <option value={PRICE_FEEDS.USDC_USD}>USDC / USD</option>
+          </select>
+        </div>
 
         <div className="space-y-2">
           <label className="block text-sm font-medium">Pyth Price Feed ID (hex)</label>
