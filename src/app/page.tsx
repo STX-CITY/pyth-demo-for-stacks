@@ -2,12 +2,13 @@
 
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import {
-  contractAddress,
-  contractName,
   openDecode,
   openGetPrice,
   openReadPrice,
   openVerifyAndUpdate,
+  getContractAddress,
+  getContractName,
+  Network,
 } from '../lib/stacks';
 import { HermesClient } from '@pythnetwork/hermes-client';
 import { connectWallet, resolveStxAddress, disconnectWallet, isWalletConnected } from '../lib/wallet';
@@ -17,6 +18,7 @@ import { getTransactionResult, formatTimestamp } from '../lib/hiro-api';
 const DEFAULT_FEED_ID = PRICE_FEEDS.BTC_USD;
 
 export default function Home() {
+  const [network, setNetwork] = useState<Network>('mainnet');
   const [feedId, setFeedId] = useState<string>(DEFAULT_FEED_ID);
   const [vaaHex, setVaaHex] = useState<string>('');
   const [status, setStatus] = useState<string>('');
@@ -26,6 +28,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentTxId, setCurrentTxId] = useState<string | null>(null);
   const [currentFeedName, setCurrentFeedName] = useState<string>('');
+
+  const contractAddress = getContractAddress(network);
+  const contractName = getContractName(network);
 
   const hermes = useMemo(() => new HermesClient('https://hermes.pyth.network'), []);
 
@@ -113,7 +118,7 @@ export default function Home() {
       // Wait a bit for transaction to be indexed
       setTimeout(async () => {
         try {
-          const result = await getTransactionResult(txResult.txid, 'mainnet');
+          const result = await getTransactionResult(txResult.txid, network);
           setTxResults(result);
           if (result.success) {
             setStatus(`Transaction successful for ${functionName}`);
@@ -150,9 +155,9 @@ export default function Home() {
       }
     }
     setStatus('Opening wallet for decode-price-feeds...');
-    const txResult = await openDecode(vaaHex);
+    const txResult = await openDecode(vaaHex, network);
     await handleTxResult(txResult, 'decode-price-feeds');
-  }, [vaaHex, connected, handleTxResult]);
+  }, [vaaHex, connected, handleTxResult, network]);
 
   const handleVerify = useCallback(async () => {
     if (!vaaHex) return setStatus('VAA is empty');
@@ -174,9 +179,9 @@ export default function Home() {
       }
     }
     setStatus('Opening wallet for verify-and-update-price-feeds...');
-    const txResult = await openVerifyAndUpdate(vaaHex);
+    const txResult = await openVerifyAndUpdate(vaaHex, network);
     await handleTxResult(txResult, 'verify-and-update-price-feeds');
-  }, [vaaHex, connected, handleTxResult]);
+  }, [vaaHex, connected, handleTxResult, network]);
 
   const handleRead = useCallback(async () => {
     if (!connected) {
@@ -200,9 +205,9 @@ export default function Home() {
       (key) => PRICE_FEEDS[key as keyof typeof PRICE_FEEDS] === feedId
     );
     setStatus('Opening wallet for read-price-feed...');
-    const txResult = await openReadPrice(feedId);
+    const txResult = await openReadPrice(feedId, network);
     await handleTxResult(txResult, 'read-price-feed', feedName);
-  }, [feedId, connected, handleTxResult]);
+  }, [feedId, connected, handleTxResult, network]);
 
   const handleGet = useCallback(async () => {
     if (!connected) {
@@ -226,9 +231,9 @@ export default function Home() {
       (key) => PRICE_FEEDS[key as keyof typeof PRICE_FEEDS] === feedId
     );
     setStatus('Opening wallet for get-price...');
-    const txResult = await openGetPrice(feedId);
+    const txResult = await openGetPrice(feedId, network);
     await handleTxResult(txResult, 'get-price', feedName);
-  }, [feedId, connected, handleTxResult]);
+  }, [feedId, connected, handleTxResult, network]);
 
   return (
     <div className="min-h-screen p-6 sm:p-10 font-sans">
@@ -298,6 +303,32 @@ export default function Home() {
               </div>
             </>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">Network</label>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setNetwork('mainnet')}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                network === 'mainnet'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Mainnet
+            </button>
+            <button
+              onClick={() => setNetwork('testnet')}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                network === 'testnet'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Testnet
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -376,7 +407,7 @@ export default function Home() {
               <div className="pt-2 border-t">
                 <span className="font-medium">Transaction ID: </span>
                 <a
-                  href={`https://explorer.hiro.so/txid/${currentTxId}?chain=mainnet`}
+                  href={`https://explorer.hiro.so/txid/${currentTxId}?chain=${network}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:text-blue-800 underline break-all"
