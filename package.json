@@ -8,21 +8,21 @@
     "start": "next start -p 6970"
   },
   "dependencies": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.5.4",
+    "@pythnetwork/hermes-client": "^1.4.0",
     "@stacks/connect": "^8.1.9",
     "@stacks/storage": "^6.15.0",
     "@stacks/transactions": "^7.0.6",
-    "@pythnetwork/hermes-client": "^1.4.0",
-    "buffer": "^6.0.3"
+    "buffer": "^6.0.3",
+    "next": "^15.5.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
